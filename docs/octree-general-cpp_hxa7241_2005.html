@@ -1,0 +1,911 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head profile="http://dublincore.org/documents/dcq-html/">
+   <title>Octree C++ General Component - HXA7241 - 2007</title>
+
+   <link rel="schema.DC"       href="http://purl.org/dc/elements/1.1/" />
+   <meta name="DC.title"       content="Octree C++ General Component - HXA7241 - 2007" />
+   <meta name="DC.subject"     content="Octree, Data structure, C++, Design, Implementation, Programming" />
+   <meta name="DC.description" content="A technical article on the design of a general octree data structure in C++." />
+   <meta name="DC.type"        content="technical article" />
+   <meta name="DC.type"        content="Text" />
+   <meta name="DC.type"        content="Image" />
+   <link rel="DC.relation"     href="http://www.hxa.name/" />
+   <meta name="DC.creator"     content="Harrison Ainsworth / HXA7241" />
+   <meta name="DC.rights"      content="Creative Commons BY-SA 3.0 License." />
+   <meta name="DC.date"        content="2007-08-13" />
+   <meta name="DC.format"      content="text/html" />
+   <meta name="DC.format"      content="css1" />
+   <meta name="DC.language"    content="en" />
+   <link rel="DC.identifier"   href="http://www.hxa.name/articles/content/octree-general-cpp_hxa7241_2005.html" />
+
+   <meta name="keywords"       content="Octree, Data structure, C++, Design, Implementation, Programming" />
+   <meta name="description"    content="A technical article on the design of a general octree data structure in C++." />
+   <meta name="document"       content="hxa7241article5" />
+   <meta name="license"        content="none" />
+
+   <link rel="stylesheet" type="text/css" href="hxa7241-article.css" />
+
+   <script id="hxa7241-js" type="application/x-javascript" src="../../style/hxa7241.js"></script>
+</head>
+
+
+<body>
+
+<script src="http://www.google-analytics.com/urchin.js" type="text/javascript">
+</script>
+<script type="text/javascript">
+_uacct = "UA-596081-1";
+urchinTracker();
+</script>
+
+<div class="edge" id="header"><div><a href="http://www.hxa.name/articles/">HXA articles</a></div></div>
+
+<div class="paper">
+
+
+<div id="heading">
+   <h1>Octree C++ General Component</h1>
+</div>
+
+
+<div id="colophon">
+<h4>Harrison Ainsworth</h4>
+
+   <p id="contact"><a href="http://www.hxa.name/">http://www.hxa.name/</a>
+   <br />artifex <i>(&alpha;&tau;)</i> hxa7241 <i>(d&omicron;&tau;)</i> org</p>
+
+   <p id="timestamp">2007-08-13</p>
+</div>
+
+
+<div id="preface">
+   <div id="summary">
+      <h2>Summary</h2>
+      <p>A description of the technical design for a generalised octree data structure in C++. It allows storage of any object type, and application of various query algorithms. (700 words) (version 2.1)</p>
+   </div>
+
+   <dl id="metadata" class="plainlist">
+      <dt>subject</dt>
+      <dd>Octree, Data structure, C++, Design, Implementation, Programming</dd>
+
+      <dt>uri</dt>
+      <dd><a href="http://www.hxa.name/articles/content/octree-general-cpp_hxa7241_2005.html">http://www.hxa.name/articles/content/octree-general-cpp_hxa7241_2005.html</a></dd>
+
+      <dt>license</dt>
+      <dd><a rel="license" href="http://creativecommons.org/licenses/by-sa/3.0/">Creative Commons BY-SA 3.0 License</a>.</dd>
+
+      <dt>download</dt>
+      <dd>Source code: <a href="http://www.hxa.name/articles/content/hxa-octree21cpp.zip" onclick="javascript:urchinTracker('/articles/content/octree-download');">http://www.hxa.name/articles/content/hxa-octree21cpp.zip</a></dd>
+   </dl>
+</div>
+
+
+<div id="contents">
+   <h2>Contents</h2>
+   <ul>
+      <li><a href="#introduction">Introduction</a></li>
+      <li><a href="#design">Design</a></li>
+      <li><a href="#diagrams">Diagrams</a></li>
+      <li><a href="#code">Code</a></li>
+      <li><a href="#references">References</a></li>
+      <li><a href="#license">License</a></li>
+   </ul>
+</div>
+
+
+<div id="text">
+
+<div class="section" id="introduction">
+<h3>Introduction</h3>
+
+   <p>The purpose was to make a reusable octree component in C++. First, that means holding objects of any type, and second, allowing search/inspection by any algorithm. As supplementary requirements, it must make no demands of the item type, and it ought to be compact in active memory use and compiled code size.</p>
+
+   <p>The core interface is like this:</p>
+   <ul>
+      <li>construction
+         <ul>
+            <li>create with size and limits</li>
+         </ul>
+      </li>
+      <li>commands
+         <ul>
+            <li>insert item</li>
+            <li>remove item</li>
+         </ul>
+      </li>
+      <li>queries
+         <ul>
+            <li>visit with user-defined operation</li>
+         </ul>
+      </li>
+   </ul>
+
+   <p>Its features are:</p>
+   <ul>
+      <li>non-intrusive (doesn't limit or oblige stored-item particularly)</li>
+      <li>strongly typed (doesn't accept void pointers)</li>
+      <li>doesn't manage item storage (just indexes items)</li>
+      <li>minimal in storage space</li>
+      <li>numerically sound (no gaps/overlaps between cells)</li>
+      <li>moderately-strongly exception-safe (always maintains basic validity)</li>
+      <li>moderately easy to use</li>
+   </ul>
+
+   <p>Algorithms implemented using the Octree include: selecting photons within a spherical shell region, and finding nearest ray-object intersection.</p>
+</div>
+
+
+<div class="section" id="design">
+<h3>Design</h3>
+
+   <p>Two key ideas resolved the design requirements: Move polymorphism out of the item class and into a separate &lsquo;agent&rsquo; class; Use a <i>Visitor</i> as a query to generalise access and operations.</p>
+
+   <h4>Principal structure</h4>
+
+   <p>The principal design structure is a layering into interface and implementation. The interface presents three thin templates. The implementation handles containment and access polymorphically. The interface is divided into two halves: octree (used as-is) and agent/visitor (overridden by client subclasses). The implementation is divided into structural, numerical, and delegatory parts.</p>
+
+   <h4>Indirect virtual pattern</h4>
+
+   <p>An octree requires its contained items to provide positional info. But requiring the item classes to implement an <code>OctreeItem</code> interface would impose a direct interface change on every prospective item type, and enlarge their instances with a vptr. Making the octree a simple template would expand the compiled code size considerably.</p>
+
+   <p>Instead, the octree-related interface/implementation of the item is transferred away from the item type into the separate agent class. The octree can now hold <code>void</code> pointers to items and call the agent to supply information about them. This is used in insertion and removal commands.</p>
+
+   <p>Similar to this indirect virtual pattern is the visitor. This is like the conventional <i>Visitor</i>: defining an externalised operation on the main data structure. In this case however, the octree is constant and the visitor is the object modified. This provides callbacks to read tree nodes for visit queries.</p>
+
+   <p>The octree template wrapper ensures the items indexed by the octree and the agents and visitors used when accessing them are of matching types. All work is delegated to its <i>Composite</i> pattern implementation, which works with abstract base interfaces and <code>void</code> pointers.</p>
+
+   <h4>Dimensions and traversal</h4>
+
+   <p>Attention to the numerical nature of the data structure is needed: OO thinking might first suggest a cubelet class knowing its boundary. But separate cubelets share boundary faces, and this must be represented carefully numerically, otherwise gaps will appear between them.</p>
+
+   <p>This leads to modelling <i>divisions</i> of eight cubelets, rather than <i>bounds</i> of individuals. Ultimately the dimensions can be &lsquo;factored&rsquo; into a minimal form: the size of the root, and a fixed algorithm of division. Only the root cell needs to store anything. That is then passed through and divided at each level during traversal.</p>
+
+   <p>During a visit, execution jumps back and forth between client and framework. First the client calls the octree to start. The octree, at each tree level, calls back to the visitor, which can then call the framework again to continue further. This interaction allows the client visitor to collect state and steer the traversal.</p>
+</div>
+
+
+<div class="section" id="diagrams">
+<h3>Diagrams</h3>
+
+   <p>
+      <img src="ogc-class-relations-diagram.png" width="600" height="750" alt="UML class relations diagram" />
+   </p>
+
+   <p>
+      <img src="ogc-visit-sequence-diagram.png" width="600" height="500" alt="UML visit sequence diagram" />
+   </p>
+
+</div>
+
+
+<div class="section" id="code">
+<h3>Code</h3>
+
+   <p>The client interface is in one <code>hpp-cpp</code> file pair containing three class templates: <code>Octree</code>, <code>OctreeAgent</code> and <code>OctreeVisitor</code>.</p>
+
+   <p>The implementation is in two <code>hpp-cpp</code> file pairs. One contains the classes for the <i>Composite</i> (relating to structure). The other contains the rest (relating to numerics and delegation).</p>
+
+   <p>Each class definition is in sections. The basic ones are: standard object services (constructors, copying...), commands, queries, and fields.</p>
+
+   <p>The core component is 915 lines of code. The total, including the support classes, is 1363 lines.</p>
+
+   <p>Exception handling is used for standard storage exceptions. RTTI is not used. Only basic use is made of templates. Standard C library dependencies are: <code>limits.h</code>, <code>float.h</code>, and <code>math.h</code>.</p>
+
+   <h5>Download</h5>
+
+   <p>Everything is in this archive: <a href="http://www.hxa.name/articles/content/hxa-octree21cpp.zip" onclick="javascript:urchinTracker('/articles/content/octree-download');">http://www.hxa.name/articles/content/hxa-octree21cpp.zip</a> </p>
+
+   <h4>Interface</h4>
+   
+   <p>Here is an extract: the main client interface.</p>
+   <ul>
+      <li>
+         <a href="#octree.hpp">Octree.hpp file</a>
+         <ul>
+            <li><a href="#octreeagent-h">OctreeAgent class template abstract</a></li>
+            <li><a href="#octreevisitor-h">OctreeVisitor class template abstract</a></li>
+            <li><a href="#octree-h">Octree class template</a></li>
+         </ul>
+      </li>
+   </ul>
+
+
+   <h4 id="octree.hpp">Octree.hpp</h4>
+<pre><code>#ifndef Octree_h
+#define Octree_h
+
+
+#include &quot;OctreeImplementation.hpp&quot;
+
+
+
+
+namespace hxa7241_graphics
+{
+
+
+<span class="lowlight">/**
+ * Agent abstract base, for client use with Octree.&lt;br/&gt;&lt;br/&gt;
+ *
+ * Client of Octree must define a concrete derivative of
+ * OctreeAgent&lt;ItemType&gt;.&lt;br/&gt;&lt;br/&gt;
+ *
+ * This is similar to a proxy: it is an intermediary for an Octree to query
+ * its typeless subject items, when inserting or removing.&lt;br/&gt;&lt;br/&gt;
+ *
+ * The overlap methods are to determine an item&apos;s relation to a cell or cells,
+ * for insertion or removal. The parameters supply the bounds of the cell.
+ * &lt;br/&gt;&lt;br/&gt;
+ *
+ * Return value of getSubcellOverlaps is 8 bits, each bit is a bool
+ * corresponding to a subcell, the high bit for subcell 7, the low bit for
+ * subcell 0.&lt;br/&gt;&lt;br/&gt;
+ *
+ * Subcell numbering:
+ * &lt;pre&gt;
+ *    y z       6 7
+ *    |/   2 3  4 5
+ *     -x  0 1
+ * &lt;/pre&gt;
+ * in binary:
+ * &lt;pre&gt;
+ *    y z           110 111
+ *    |/   010 011  100 101
+ *     -x  000 001
+ * &lt;/pre&gt;
+ *
+ * @implementation
+ * The ___V methods simply apply a type-cast to void*s and forward to their
+ * abstract counterparts.&lt;br/&gt;&lt;br/&gt;
+ *
+ * An Octree requires its contained items to provide positional info. But
+ * requiring the item classes to implement an OctreeItem interface would
+ * impose a direct interface change on every prospective item type, and enlarge
+ * their instances with a vptr.&lt;br/&gt;&lt;br/&gt;
+ *
+ * Instead, this agent transfers the Octree-related interface/implementation
+ * away from the item type into a separate class. The Octree can now hold void
+ * pointers to items and call the agent to query them indirectly.&lt;br/&gt;&lt;br/&gt;
+ */</span>
+<span id="octreeagent-h">template&lt;class TYPE&gt;
+class OctreeAgent</span>
+   : public OctreeAgentV
+{
+<span class="lowlight">/// standard object services ---------------------------------------------------</span>
+protected:
+            OctreeAgent() {}
+public:
+   virtual ~OctreeAgent() {}
+private:
+            OctreeAgent( const OctreeAgent&amp; );
+   OctreeAgent&amp; operator=( const OctreeAgent&amp; );
+
+
+<span class="lowlight">/// void-to-type forwarders</span>
+public:
+<span class="lowlight">/// queries --------------------------------------------------------------------</span>
+   virtual bool  isOverlappingCellV ( const void*     pItem,
+                                      const Vector3r&amp; lowerCorner,
+                                      const Vector3r&amp; upperCorner )       const;
+   virtual dword getSubcellOverlapsV( const void*     pItem,
+                                      const Vector3r&amp; lower,
+                                      const Vector3r&amp; middle,
+                                      const Vector3r&amp; upper )             const;
+
+
+<span class="lowlight">/// abstract interface</span>
+protected:
+<span class="lowlight">/// queries --------------------------------------------------------------------</span>
+   <span class="lowlight">/**
+    * Called by Octree to get relation of item to cell.
+    */</span>
+   virtual bool  isOverlappingCell ( const TYPE&amp;     item,
+                                     const Vector3r&amp; lowerCorner,
+                                     const Vector3r&amp; upperCorner )     const =0;
+   <span class="lowlight">/**
+    * Called by Octree to get relation of item to subcell octants.&lt;br/&gt;&lt;br/&gt;
+    * Override to make a more efficent calculation (boundary testing can be
+    * shared).
+    * @return
+    * 8 bits, each a bool corresponding to a subcell, the high bit for subcell
+    * 7, the low bit for subcell 0.&lt;br/&gt;&lt;br/&gt;
+    * Subcell numbering:
+    * &lt;pre&gt;
+    *    y z       6 7
+    *    |/   2 3  4 5
+    *     -x  0 1
+    * &lt;/pre&gt;
+    * in binary:
+    * &lt;pre&gt;
+    *    y z           110 111
+    *    |/   010 011  100 101
+    *     -x  000 001
+    * &lt;/pre&gt;
+    */</span>
+   virtual dword getSubcellOverlaps( const TYPE&amp;     item,
+                                     const Vector3r&amp; lowerCorner,
+                                     const Vector3r&amp; middlePoint,
+                                     const Vector3r&amp; upperCorner )        const;
+};
+
+
+
+
+<span class="lowlight">/// void-to-type forwarders</span>
+template&lt;class TYPE&gt;
+inline
+bool OctreeAgent&lt;TYPE&gt;::isOverlappingCellV
+(
+   const void*     pItem,
+   const Vector3r&amp; lowerCorner,
+   const Vector3r&amp; upperCorner
+) const
+{
+   bool is = false;
+
+   <span class="lowlight">// null check unnecessary because Octree interface disallows nulls
+   //if( pItem )</span>
+   {
+      is = isOverlappingCell( *reinterpret_cast&lt;const TYPE*&gt;( pItem ),
+         lowerCorner, upperCorner );
+   }
+
+   return is;
+}
+
+
+template&lt;class TYPE&gt;
+inline
+dword OctreeAgent&lt;TYPE&gt;::getSubcellOverlapsV
+(
+   const void*     pItem,
+   const Vector3r&amp; lower,
+   const Vector3r&amp; middle,
+   const Vector3r&amp; upper
+) const
+{
+   dword ov = ALL_OUTSIDE;
+
+   <span class="lowlight">// null check unnecessary because Octree interface disallows nulls
+   //if( pItem )</span>
+   {
+      ov = getSubcellOverlaps( *reinterpret_cast&lt;const TYPE*&gt;( pItem ),
+         lower, middle, upper );
+   }
+
+   return ov;
+}
+
+
+<span class="lowlight">/// default implementation</span>
+template&lt;class TYPE&gt;
+dword OctreeAgent&lt;TYPE&gt;::getSubcellOverlaps
+(
+   const TYPE&amp;     item,
+   const Vector3r&amp; lowerCorner,
+   const Vector3r&amp; middlePoint,
+   const Vector3r&amp; upperCorner
+) const
+{
+   dword flags = ALL_OUTSIDE;
+
+   const Vector3r* lowMidPoints[]  = { &amp;lowerCorner, &amp;middlePoint };
+   const Vector3r* midHighPoints[] = { &amp;middlePoint, &amp;upperCorner };
+
+   <span class="lowlight">// step through each subcell</span>
+   for( dword i = 8;  i-- &gt; 0; )
+   {
+      const Vector3r cellLowerCorner( lowMidPoints[ i       &amp; 1]-&gt;getX(),
+                                      lowMidPoints[(i &gt;&gt; 1) &amp; 1]-&gt;getY(),
+                                      lowMidPoints[(i &gt;&gt; 2) &amp; 1]-&gt;getZ() );
+      const Vector3r cellUpperCorner( midHighPoints[ i       &amp; 1]-&gt;getX(),
+                                      midHighPoints[(i &gt;&gt; 1) &amp; 1]-&gt;getY(),
+                                      midHighPoints[(i &gt;&gt; 2) &amp; 1]-&gt;getZ() );
+      <span class="lowlight">// delegate to single-cell test</span>
+      flags |= static_cast&lt;dword&gt;(isOverlappingCell( item, cellLowerCorner,
+         cellUpperCorner )) &lt;&lt; i;
+   }
+
+   return flags;
+}
+
+
+
+
+<span class="lowlight">/**
+ * Visitor abstract base, for client use with Octree.&lt;br/&gt;&lt;br/&gt;
+ *
+ * Client of Octree must define a concrete derivative of
+ * OctreeVisitor&lt;ItemType&gt;.&lt;br/&gt;&lt;br/&gt;
+ *
+ * This is a reversal of the Visitor pattern: it allows an operation to be
+ * performed with the Octree, except the Octree is merely read from and it is
+ * the visitor that is modified.&lt;br/&gt;&lt;br/&gt;
+ *
+ * The visit methods are called by the tree nodes during the visit operation.
+ * The parameters supply the cell and boundary info. The implementation can
+ * call visit on the supplied cell.&lt;br/&gt;&lt;br/&gt;
+ *
+ * The implementation of visitBranch needs to make the OctreeData to be given
+ * in each call of visit.
+ *
+ * Subcell numbering:
+ * &lt;pre&gt;
+ *    y z       6 7
+ *    |/   2 3  4 5
+ *     -x  0 1
+ * &lt;/pre&gt;
+ * in binary:
+ * &lt;pre&gt;
+ *    y z           110 111
+ *    |/   010 011  100 101
+ *     -x  000 001
+ * &lt;/pre&gt;
+ *
+ * @implementation
+ * The ___V methods simply apply a type-cast to void*s and forward to their
+ * abstract counterparts.&lt;br/&gt;&lt;br/&gt;
+ */</span>
+<span id="octreevisitor-h">template&lt;class TYPE&gt;
+class OctreeVisitor</span>
+   : public OctreeVisitorV
+{
+<span class="lowlight">/// standard object services ---------------------------------------------------</span>
+protected:
+            OctreeVisitor() {}
+public:
+   virtual ~OctreeVisitor() {}
+private:
+            OctreeVisitor( const OctreeVisitor&amp; );
+   OctreeVisitor&amp; operator=( const OctreeVisitor&amp; );
+
+
+<span class="lowlight">/// void-to-type forwarders</span>
+public:
+<span class="lowlight">/// commands -------------------------------------------------------------------</span>
+   virtual void  visitRootV  ( const OctreeCell* pRootCell,
+                               const OctreeData&amp; octreeData );
+   virtual void  visitBranchV( const OctreeCell* subCells[8],
+                               const OctreeData&amp; octreeData );
+   virtual void  visitLeafV  ( const Array&lt;const void*&gt;&amp; items,
+                               const OctreeData&amp;         octreeData );
+
+
+<span class="lowlight">/// abstract interface</span>
+protected:
+<span class="lowlight">/// commands -------------------------------------------------------------------</span>
+   <span class="lowlight">/**
+    * Called by Octree when visit traversal is at the root.&lt;br/&gt;&lt;br/&gt;
+    * To continue deeper, implementation calls OctreeRoot::continueVisit(
+    * pRootCell, octreeData, *this ). pRootCell can be null.&lt;br/&gt;&lt;br/&gt;
+    * @see OctreeData
+    */</span>
+   virtual void  visitRoot  ( const OctreeCell* pRootCell,
+                              const OctreeData&amp; octreeData )                 =0;
+   <span class="lowlight">/**
+    * Called by Octree when visit traversal is at a branch.&lt;br/&gt;&lt;br/&gt;
+    * To continue deeper, implementation calls OctreeBranch::continueVisit(
+    * subCells, octreeData, subCellIndex, *this ) for any/all subCellIndex
+    * values. subCells elements can be null.&lt;br/&gt;&lt;br/&gt;
+    * @see OctreeData
+    */</span>
+   virtual void  visitBranch( const OctreeCell* subCells[8],
+                              const OctreeData&amp; octreeData )                 =0;
+   <span class="lowlight">/**
+    * Called by Octree when visit traversal is at a leaf.&lt;br/&gt;&lt;br/&gt;
+    * @see OctreeData
+    */</span>
+   virtual void  visitLeaf  ( const Array&lt;const TYPE*&gt;&amp; items,
+                              const OctreeData&amp;         octreeData )         =0;
+};
+
+
+
+
+<span class="lowlight">/// void-to-type forwarders</span>
+template&lt;class TYPE&gt;
+inline
+void OctreeVisitor&lt;TYPE&gt;::visitRootV
+(
+   const OctreeCell* pRootCell,
+   const OctreeData&amp; octreeData
+)
+{
+   visitRoot( pRootCell, octreeData );
+}
+
+
+template&lt;class TYPE&gt;
+inline
+void OctreeVisitor&lt;TYPE&gt;::visitBranchV
+(
+   const OctreeCell* subCells[8],
+   const OctreeData&amp; octreeData
+)
+{
+   visitBranch( subCells, octreeData );
+}
+
+
+template&lt;class TYPE&gt;
+inline
+void OctreeVisitor&lt;TYPE&gt;::visitLeafV
+(
+   const Array&lt;const void*&gt;&amp; items,
+   const OctreeData&amp;         octreeData
+)
+{
+   visitLeaf( reinterpret_cast&lt;const Array&lt;const TYPE*&gt;&amp;&gt;( items ),
+      octreeData );
+}
+
+
+
+
+
+
+
+
+<span class="lowlight">/**
+ * Octree based spatial index.&lt;br/&gt;&lt;br/&gt;
+ *
+ * Client must define concrete derivatives of OctreeAgent&lt;ItemType&gt; and
+ * OctreeVisitor&lt;ItemType&gt;.&lt;br/&gt;&lt;br/&gt;
+ *
+ * maxItemCountPerCell is ignored where maxLevelCount or minCellSize is reached.
+ * &lt;br/&gt;&lt;br/&gt;
+ *
+ * The octree is cubical and axis aligned, partitions are axis aligned,
+ * partitions divide in half, each level partitions the previous level in all
+ * three axiss.&lt;br/&gt;&lt;br/&gt;
+ *
+ * Storage is contracted or expanded as needed by item insertion and removal.
+ * &lt;br/&gt;&lt;br/&gt;
+ *
+ * (Occupies, very approximately, 20 bytes per point item. maybe...)&lt;br/&gt;&lt;br/&gt;
+ *
+ * Octree is only an index: it points to client items, it does not manage
+ * storage of items themselves.&lt;br/&gt;&lt;br/&gt;
+ *
+ * @see OctreeAgent
+ * @see OctreeVisitor
+ *
+ * @implementation
+ * The octree structure follows the Composite pattern.&lt;br/&gt;&lt;br/&gt;
+ *
+ * This template wrapper ensures the items indexed by the octree, and the agents
+ * and visitors used when accessing them are, of matching types. All algorithmic
+ * work is delegated to OctreeRoot and OctreeCell derivatives in
+ * OctreeImplementation, which work with abstract base interfaces and void
+ * pointers.&lt;br/&gt;&lt;br/&gt;
+ *
+ * For the insertion and removal commands, the agent provides an interface for
+ * the octree to query the typeless item, and for the visit query, the visitor
+ * provides callbacks to read tree nodes for carrying out the visit operation.
+ */</span>
+<span id="octree-h">template&lt;class TYPE&gt;
+class Octree</span>
+{
+<span class="lowlight">/// standard object services ---------------------------------------------------</span>
+public:
+   <span class="lowlight">/**
+    * Constructs a particular format of octree.&lt;br/&gt;&lt;br/&gt;
+    * @parameters
+    * * sizeOfCube is desired length along a side&lt;br/&gt;
+    * * maxItemCountPerCell is desired max item pointers per leaf&lt;br/&gt;
+    * * maxLevelCount is desired max depth of tree&lt;br/&gt;
+    * * minCellSize is desired min size of cells&lt;br/&gt;
+    */</span>
+            Octree( const Vector3r&amp; positionOfLowerCorner,
+                    real            sizeOfCube,
+                    dword           maxItemCountPerCell,
+                    dword           maxLevelCount,
+                    real            minCellSize );
+
+           ~Octree();
+            Octree( const Octree&amp; );
+   <span class="lowlight">/**
+    * @exceptions
+    * Can throw storage allocation exceptions. In such cases the octree is
+    * unmodified.
+    */</span>
+   Octree&amp; operator=( const Octree&amp; );
+
+
+<span class="lowlight">/// commands -------------------------------------------------------------------</span>
+   <span class="lowlight">/**
+    * Add pointer(s) to the item to the octree.&lt;br/&gt;&lt;br/&gt;
+    * (If an item has non-zero volume, it may have pointers in multiple
+    * cells.)&lt;br/&gt;&lt;br/&gt;
+    * @return is the item inserted -- false if item not inside root bound
+    * @exceptions
+    * Can throw storage allocation exceptions. In such cases the octree remains
+    * structurally ok, but the item will not be fully added, -- call this
+    * method again or the remove method.
+    * @see remove, OctreeAgent
+    */</span>
+           bool  insert( const TYPE&amp;              item,
+                         const OctreeAgent&lt;TYPE&gt;&amp; agent );
+   <span class="lowlight">/**
+    * Removes pointer(s) to the item from the octree.&lt;br/&gt;&lt;br/&gt;
+    * (If an item has non-zero volume, it may have pointers in multiple
+    * cells.)&lt;br/&gt;&lt;br/&gt;
+    * @return is the item removed -- false if item wasn&apos;t present
+    * @exceptions
+    * Can throw storage allocation exceptions. In such cases the octree remains
+    * structurally ok, but the item will not be fully removed, -- call this
+    * method again or the insert method.
+    * @see insert, OctreeAgent
+    */</span>
+           bool  remove( const TYPE&amp;              item,
+                         const OctreeAgent&lt;TYPE&gt;&amp; agent );
+
+
+<span class="lowlight">/// queries --------------------------------------------------------------------</span>
+   <span class="lowlight">/**
+    * Execute a visit query operation.
+    * @see OctreeVisitor
+    */</span>
+           void  visit( OctreeVisitor&lt;TYPE&gt;&amp; visitor )                    const;
+
+   <span class="lowlight">/**
+    * Reports if the octree is empty.
+    */</span>
+           bool  isEmpty()                                                const;
+   <span class="lowlight">/**
+    * Provides stats on the octree.&lt;br/&gt;&lt;br/&gt;
+    * @parameters
+    * * byteSize is size in bytes&lt;br/&gt;
+    * * leafCount is number of leafs&lt;br/&gt;
+    * * itemRefCount is total number of item pointers in all leafs&lt;br/&gt;
+    * * maxDepth is deepest depth of tree&lt;br/&gt;
+    */</span>
+           void  getInfo( dword&amp; byteSize,
+                          dword&amp; leafCount,
+                          dword&amp; itemRefCount,
+                          dword&amp; maxDepth )                               const;
+
+   <span class="lowlight">/**
+    * Gives the position supplied at construction.
+    */</span>
+           const Vector3r&amp; getPosition()                                  const;
+   <span class="lowlight">/**
+    * Gives the size supplied at construction.
+    */</span>
+           real            getSize()                                      const;
+   <span class="lowlight">/**
+    * Gives the leaf pointer limit supplied at construction.
+    */</span>
+           dword           getMaxItemCountPerCell()                       const;
+   <span class="lowlight">/**
+    * Gives the depth limit supplied at construction.
+    */</span>
+           dword           getMaxLevelCount()                             const;
+   <span class="lowlight">/**
+    * Gives the size limit supplied at construction.
+    */</span>
+           real            getMinCellSize()                               const;
+
+
+<span class="lowlight">/// fields ---------------------------------------------------------------------</span>
+private:
+   OctreeRoot root_m;
+};
+
+
+
+
+<span class="lowlight">/// templates ///</span>
+
+<span class="lowlight">/// standard object services ---------------------------------------------------</span>
+template&lt;class TYPE&gt;
+inline
+Octree&lt;TYPE&gt;::Octree
+(
+   const Vector3r&amp; position,
+   const real      sizeOfCube,
+   const dword     maxItemCountPerCell,
+   const dword     maxLevelCount,
+   const real      minCellSize
+)
+ : root_m( position, sizeOfCube, maxItemCountPerCell, maxLevelCount,
+      minCellSize )
+{
+}
+
+
+template&lt;class TYPE&gt;
+inline
+Octree&lt;TYPE&gt;::~Octree()
+{
+}
+
+
+template&lt;class TYPE&gt;
+inline
+Octree&lt;TYPE&gt;::Octree
+(
+   const Octree&amp; other
+)
+ : root_m( other.root_m )
+{
+}
+
+
+template&lt;class TYPE&gt;
+inline
+Octree&lt;TYPE&gt;&amp; Octree&lt;TYPE&gt;::operator=
+(
+   const Octree&amp; other
+)
+{
+   root_m = other.root_m;
+
+   return *this;
+}
+
+
+
+
+<span class="lowlight">/// commands -------------------------------------------------------------------</span>
+template&lt;class TYPE&gt;
+inline
+bool Octree&lt;TYPE&gt;::insert
+(
+   const TYPE&amp;              item,
+   const OctreeAgent&lt;TYPE&gt;&amp; agent
+)
+{
+   return root_m.insert( &amp;item, agent );
+}
+
+
+template&lt;class TYPE&gt;
+inline
+bool Octree&lt;TYPE&gt;::remove
+(
+   const TYPE&amp;              item,
+   const OctreeAgent&lt;TYPE&gt;&amp; agent
+)
+{
+   return root_m.remove( &amp;item, agent );
+}
+
+
+
+
+<span class="lowlight">/// queries --------------------------------------------------------------------</span>
+template&lt;class TYPE&gt;
+inline
+void Octree&lt;TYPE&gt;::visit
+(
+   OctreeVisitor&lt;TYPE&gt;&amp; visitor
+) const
+{
+   root_m.visit( visitor );
+}
+
+
+template&lt;class TYPE&gt;
+inline
+bool Octree&lt;TYPE&gt;::isEmpty() const
+{
+   return root_m.isEmpty();
+}
+
+
+template&lt;class TYPE&gt;
+inline
+void Octree&lt;TYPE&gt;::getInfo
+(
+   dword&amp; byteSize,
+   dword&amp; leafCount,
+   dword&amp; itemRefCount,
+   dword&amp; maxDepth
+) const
+{
+   root_m.getInfo( sizeof(*this), byteSize, leafCount, itemRefCount, maxDepth );
+}
+
+
+template&lt;class TYPE&gt;
+inline
+const Vector3r&amp; Octree&lt;TYPE&gt;::getPosition() const
+{
+   return root_m.getPosition();
+}
+
+
+template&lt;class TYPE&gt;
+inline
+real Octree&lt;TYPE&gt;::getSize() const
+{
+   return root_m.getSize();
+}
+
+
+template&lt;class TYPE&gt;
+inline
+dword Octree&lt;TYPE&gt;::getMaxItemCountPerCell() const
+{
+   return root_m.getMaxItemCountPerCell();
+}
+
+
+template&lt;class TYPE&gt;
+inline
+dword Octree&lt;TYPE&gt;::getMaxLevelCount() const
+{
+   return root_m.getMaxLevelCount();
+}
+
+
+template&lt;class TYPE&gt;
+inline
+real Octree&lt;TYPE&gt;::getMinCellSize() const
+{
+   return root_m.getMinCellSize();
+}
+
+
+}<span class="lowlight">//namespace</span>
+
+
+
+
+#endif<span class="lowlight">//Octree_h</span>
+</code></pre>
+
+</div>
+
+</div><!-- text -->
+
+
+<div class="section" id="references">
+<h2>References</h2>
+
+   <ul>
+      <li>&lsquo;The C++ Programming Language&rsquo; 3rd ed. &ndash; Stroustrup (Addison Wesley)</li>
+      <li>&lsquo;Effective C++&rsquo; 3rd ed. &ndash; Meyers (Addison Wesley)</li>
+      <li>&lsquo;More Effective C++&rsquo; &ndash; Meyers (Addison Wesley)</li>
+      <li>&lsquo;Design Patterns&rsquo; &ndash; Gamma, Helm, Johnson, Vlissides (Addison Wesley)</li>
+      <li>&lsquo;Object Oriented Software Construction&rsquo; 2nd ed. &ndash; Meyer (Prentice Hall)</li>
+      <li>&lsquo;UML Distilled&rsquo; &ndash; Fowler (Addison Wesley)</li>
+   </ul>
+
+</div>
+
+
+<div class="section" id="license">
+<h2>License</h2>
+
+   <p>The source code is available according to the (new) BSD license:</p>
+   <p>&mdash;&mdash;&mdash;</p>
+
+   <div id="licensenotice">
+      <p>Copyright (c) 2004-2007, Harrison Ainsworth / HXA7241.</p>
+
+      <p>Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:</p>
+
+      <ul>
+         <li>Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.</li>
+         <li>Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.</li>
+         <li>The name of the author may not be used to endorse or promote products derived from this software without specific prior written permission.</li>
+      </ul>
+
+      <p>THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
+   </div>
+
+</div>
+
+
+</div><!-- paper -->
+
+<div class="edge" id="footer"><div><a href="http://www.hxa.name/articles/">http://www.hxa.name/articles/</a></div></div>
+</body>
+
+</html>

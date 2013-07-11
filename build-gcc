@@ -1,0 +1,52 @@
+#!/bin/bash
+
+
+# --- using: GCC 3.3.5 ---
+
+
+# set constants ----------------------------------------------------------------
+COMPILE="g++ -c -x c++ -ansi -std=c++98 -pedantic -fno-gnu-keywords -fno-enforce-eh-specs -fno-rtti -O3 -ffast-math -Wall -Wold-style-cast -Woverloaded-virtual -Wsign-promo -Wcast-align -Wwrite-strings -Wdisabled-optimization -Icomponent"
+
+LINKE=g++
+
+
+mkdir obj
+rm obj/*
+
+
+# compile ----------------------------------------------------------------------
+echo
+echo "--- compile --"
+
+# -- compile component --
+$COMPILE component/Array.cpp -o obj/Array.o
+$COMPILE component/Vector3r.cpp -o obj/Vector3r.o
+$COMPILE component/OctreeAuxiliary.cpp -o obj/OctreeAuxiliary.o
+$COMPILE component/OctreeImplementation.cpp -o obj/OctreeImplementation.o
+$COMPILE component/Octree.cpp -o obj/Octree.o
+
+# -- compile samples --
+$COMPILE -Isamples samples/OctreeStreamOut.cpp -o obj/OctreeStreamOut.o
+$COMPILE -Isamples samples/OctreeTest.cpp -o obj/OctreeTest.o
+$COMPILE -Isamples samples/OctreeExample.cpp -o obj/OctreeExample.o
+
+
+# link -------------------------------------------------------------------------
+echo
+echo "--- link --"
+
+# -- link test sample --
+$LINKE -o octreetest obj/Array.o obj/Vector3r.o obj/OctreeAuxiliary.o obj/OctreeImplementation.o obj/Octree.o obj/OctreeStreamOut.o obj/OctreeTest.o
+
+# -- link example sample --
+$LINKE -o octreeexample obj/Array.o obj/Vector3r.o obj/OctreeAuxiliary.o obj/OctreeImplementation.o obj/Octree.o obj/OctreeExample.o
+
+
+echo
+echo "--- done --"
+
+
+rm obj/*
+
+
+exit
