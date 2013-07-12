@@ -129,8 +129,8 @@ Acknowledgements
 * 'The C++ Programming Language' 3rd ed. - Stroustrup (Addison Wesley)
 * 'Effective C++' 3rd ed. - Meyers (Addison Wesley)
 * 'More Effective C++' - Meyers (Addison Wesley)
-* 'Design Patterns' – Gamma, Helm, Johnson, Vlissides (Addison Wesley)
-* 'Object Oriented Software Construction' 2nd ed. – Meyer (PrenticeHall)
+* 'Design Patterns' - Gamma, Helm, Johnson, Vlissides (Addison Wesley)
+* 'Object Oriented Software Construction' 2nd ed. - Meyer (PrenticeHall)
 
 ### Tools ###
 
